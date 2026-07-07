@@ -58,18 +58,18 @@ const LANGUAGE_CONFIGS = {
   },
   en: {
     appTitle: "英语单词听写测验",
-    subtitle: "每行输入一个词：英文单词,正确拼写",
-    sampleWords: `experience,experience
-posture,posture
-farm,farm
-harvest,harvest
-damage,damage
-install,install
-cooperate,cooperate
-success,success
-improve,improve
-remember,remember`,
-    emptyListMessage: "请至少输入一行有效词条，例如：experience,experience",
+    subtitle: "每行输入一个词：中文提示,英文单词",
+    sampleWords: `经验,experience
+姿势,posture
+农场,farm
+收获,harvest
+损害,damage
+安装,install
+合作,cooperate
+成功,success
+提高,improve
+记住,remember`,
+    emptyListMessage: "请至少输入一行有效词条，例如：经验,experience",
     writtenAnswerLabel: "输入英文单词",
     listeningQuestionText: "听音频后输入单词",
     listeningAnswerLabel: "输入听到的英文单词",
@@ -211,7 +211,7 @@ function submitAnswer() {
     return;
   }
 
-  markCurrentQuestionWrong(`错误。正确读音：${currentQuestion.reading}`);
+  markCurrentQuestionWrong(`错误。正确答案：${currentQuestion.reading}`);
 }
 
 function normalizeJapaneseAnswer(text) {
