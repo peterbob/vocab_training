@@ -1,4 +1,7 @@
 const wordListInput = document.querySelector("#word-list");
+const languageSelect = document.querySelector("#language-select");
+const setupTitle = document.querySelector("#setup-title");
+const subtitle = document.querySelector("#subtitle");
 const startButton = document.querySelector("#start-button");
 const restartButton = document.querySelector("#restart-button");
 const submitButton = document.querySelector("#submit-button");
@@ -29,9 +32,53 @@ const continueReviewButton = document.querySelector("#continue-review-button");
 const reviewCount = document.querySelector("#review-count");
 const reviewList = document.querySelector("#review-list");
 
-const RECENT_MISTAKE_STORAGE_KEY = "jp-reading-quiz-recent-mistakes";
-const VOCABULARY_STORAGE_KEY = "jp-reading-quiz-vocabulary";
 const RECENT_MISTAKE_THRESHOLD = 3;
+const LANGUAGE_CONFIGS = {
+  ja: {
+    appTitle: "日语单词读音测验",
+    subtitle: "每行输入一个词：汉字,平假名读音",
+    sampleWords: `経験,けいけん
+姿勢,しせい
+農園,のうえん
+収穫,しゅうかく
+巣箱,すばこ
+鼠,ねずみ
+被害,ひがい
+設置,せっち
+共同,きょうどう
+成功,せいこう`,
+    emptyListMessage: "请至少输入一行有效词条，例如：経験,けいけん",
+    writtenAnswerLabel: "输入平假名读音",
+    listeningQuestionText: "听音频后输入读音",
+    listeningAnswerLabel: "输入听到的平假名读音",
+    meaningQuestionText: "听音频后判断是否听出单词",
+    speechLang: "ja-JP",
+    speechRate: 0.85,
+    normalizeAnswer: normalizeJapaneseAnswer,
+  },
+  en: {
+    appTitle: "英语单词听写测验",
+    subtitle: "每行输入一个词：英文单词,正确拼写",
+    sampleWords: `experience,experience
+posture,posture
+farm,farm
+harvest,harvest
+damage,damage
+install,install
+cooperate,cooperate
+success,success
+improve,improve
+remember,remember`,
+    emptyListMessage: "请至少输入一行有效词条，例如：experience,experience",
+    writtenAnswerLabel: "输入英文单词",
+    listeningQuestionText: "听音频后输入单词",
+    listeningAnswerLabel: "输入听到的英文单词",
+    meaningQuestionText: "听音频后判断是否听出单词",
+    speechLang: "en-US",
+    speechRate: 0.9,
+    normalizeAnswer: normalizeEnglishAnswer,
+  },
+};
 
 let allWords = [];
 let currentRoundWords = [];
@@ -39,11 +86,13 @@ let nextRoundWords = [];
 let currentQuestion = null;
 let totalMistakes = 0;
 let mistakeCounts = new Map();
+let currentLanguage = languageSelect.value;
 let recentMistakeWords = loadRecentMistakeWords();
 let vocabularyWords = loadVocabularyWords();
 let isComposingText = false;
 let quizMode = "kanji";
 
+languageSelect.addEventListener("change", changeLanguage);
 startButton.addEventListener("click", startQuiz);
 restartButton.addEventListener("click", startQuiz);
 submitButton.addEventListener("click", submitAnswer);
@@ -75,6 +124,7 @@ answerInput.addEventListener("compositionend", () => {
   isComposingText = false;
 });
 
+applyLanguageConfig(false);
 renderRecentMistakeFolder();
 renderVocabularyLibrary();
 
@@ -82,7 +132,7 @@ function startQuiz() {
   const parsedWords = parseWordList(wordListInput.value);
 
   if (parsedWords.length === 0) {
-    parseMessage.textContent = "请至少输入一行有效词条，例如：経験,けいけん";
+    parseMessage.textContent = getLanguageConfig().emptyListMessage;
     return;
   }
 
@@ -150,8 +200,9 @@ function submitAnswer() {
   }
 
   const rawUserAnswer = answerInput.value.trim();
-  const userAnswer = normalizeKana(rawUserAnswer);
-  const correctAnswer = normalizeKana(currentQuestion.reading);
+  const normalizeAnswer = getLanguageConfig().normalizeAnswer;
+  const userAnswer = normalizeAnswer(rawUserAnswer);
+  const correctAnswer = normalizeAnswer(currentQuestion.reading);
   const isCorrectReading = userAnswer === correctAnswer;
   const isCorrectKanji = rawUserAnswer === currentQuestion.kanji;
 
@@ -163,7 +214,7 @@ function submitAnswer() {
   markCurrentQuestionWrong(`错误。正确读音：${currentQuestion.reading}`);
 }
 
-function normalizeKana(text) {
+function normalizeJapaneseAnswer(text) {
   const trimmedText = text.trim();
 
   // 片假名 Unicode 范围大多比对应平假名大 0x60，逐字转换后再比较。
@@ -176,6 +227,10 @@ function normalizeKana(text) {
       return char;
     })
     .join("");
+}
+
+function normalizeEnglishAnswer(text) {
+  return text.trim().toLowerCase();
 }
 
 function updateProgress() {
@@ -225,6 +280,56 @@ function setFeedback(type, text) {
   feedback.textContent = text;
 }
 
+function changeLanguage() {
+  window.speechSynthesis?.cancel();
+  currentLanguage = languageSelect.value;
+  recentMistakeWords = loadRecentMistakeWords();
+  vocabularyWords = loadVocabularyWords();
+  allWords = [];
+  currentRoundWords = [];
+  nextRoundWords = [];
+  currentQuestion = null;
+  totalMistakes = 0;
+  mistakeCounts = new Map();
+  applyLanguageConfig(true);
+  renderRecentMistakeFolder();
+  renderVocabularyLibrary();
+}
+
+function applyLanguageConfig(shouldReplaceWordList) {
+  const config = getLanguageConfig();
+
+  document.title = config.appTitle;
+  setupTitle.textContent = config.appTitle;
+  subtitle.textContent = config.subtitle;
+  answerLabel.textContent = config.writtenAnswerLabel;
+  currentWord.textContent = "请先开始测验";
+  progress.textContent = "剩余 0 / 总共 0";
+  setFeedback("neutral", "等待开始");
+  resultPanel.classList.add("hidden");
+  meaningActions.classList.add("hidden");
+  answerInput.parentElement.classList.remove("hidden");
+  answerInput.disabled = true;
+  submitButton.disabled = true;
+  playAudioButton.disabled = true;
+  heardMeaningButton.disabled = true;
+  missedMeaningButton.disabled = true;
+  reviewButton.disabled = true;
+  collectRecentButton.disabled = true;
+
+  if (shouldReplaceWordList) {
+    wordListInput.value = config.sampleWords;
+  }
+}
+
+function getLanguageConfig() {
+  return LANGUAGE_CONFIGS[currentLanguage];
+}
+
+function getStorageKey(name) {
+  return `${currentLanguage}-${name}`;
+}
+
 function changeQuizMode(event) {
   quizMode = event.target.value;
   renderCurrentQuestion();
@@ -233,7 +338,7 @@ function changeQuizMode(event) {
 function renderCurrentQuestion() {
   if (!currentQuestion) {
     currentWord.textContent = "请先开始测验";
-    answerLabel.textContent = "输入平假名读音";
+    answerLabel.textContent = getLanguageConfig().writtenAnswerLabel;
     playAudioButton.disabled = true;
     setAnswerModeControls(false);
     setMeaningModeControls(false);
@@ -241,8 +346,8 @@ function renderCurrentQuestion() {
   }
 
   if (quizMode === "listening") {
-    currentWord.textContent = "听音频后输入读音";
-    answerLabel.textContent = "输入听到的平假名读音";
+    currentWord.textContent = getLanguageConfig().listeningQuestionText;
+    answerLabel.textContent = getLanguageConfig().listeningAnswerLabel;
     playAudioButton.disabled = false;
     setAnswerModeControls(true);
     setMeaningModeControls(false);
@@ -251,7 +356,7 @@ function renderCurrentQuestion() {
   }
 
   if (quizMode === "meaning") {
-    currentWord.textContent = "听音频后判断是否听出单词";
+    currentWord.textContent = getLanguageConfig().meaningQuestionText;
     answerLabel.textContent = "是否听出来";
     playAudioButton.disabled = false;
     setAnswerModeControls(false);
@@ -262,7 +367,7 @@ function renderCurrentQuestion() {
 
   window.speechSynthesis?.cancel();
   currentWord.textContent = currentQuestion.kanji;
-  answerLabel.textContent = "输入平假名读音";
+  answerLabel.textContent = getLanguageConfig().writtenAnswerLabel;
   playAudioButton.disabled = true;
   setAnswerModeControls(true);
   setMeaningModeControls(false);
@@ -276,8 +381,8 @@ function playCurrentQuestionAudio() {
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(currentQuestion.reading);
-  utterance.lang = "ja-JP";
-  utterance.rate = 0.85;
+  utterance.lang = getLanguageConfig().speechLang;
+  utterance.rate = getLanguageConfig().speechRate;
   window.speechSynthesis.speak(utterance);
 }
 
@@ -417,7 +522,9 @@ function getHighMistakeWords() {
 }
 
 function loadRecentMistakeWords() {
-  const savedValue = localStorage.getItem(RECENT_MISTAKE_STORAGE_KEY);
+  const savedValue =
+    localStorage.getItem(getStorageKey("reading-quiz-recent-mistakes")) ||
+    (currentLanguage === "ja" ? localStorage.getItem("jp-reading-quiz-recent-mistakes") : null);
 
   if (!savedValue) {
     return [];
@@ -436,7 +543,7 @@ function loadRecentMistakeWords() {
 }
 
 function saveRecentMistakeWords() {
-  localStorage.setItem(RECENT_MISTAKE_STORAGE_KEY, JSON.stringify(recentMistakeWords));
+  localStorage.setItem(getStorageKey("reading-quiz-recent-mistakes"), JSON.stringify(recentMistakeWords));
 }
 
 function renderRecentMistakeFolder() {
@@ -493,7 +600,9 @@ function addVocabularyMistake(word) {
 }
 
 function loadVocabularyWords() {
-  const savedValue = localStorage.getItem(VOCABULARY_STORAGE_KEY);
+  const savedValue =
+    localStorage.getItem(getStorageKey("reading-quiz-vocabulary")) ||
+    (currentLanguage === "ja" ? localStorage.getItem("jp-reading-quiz-vocabulary") : null);
 
   if (!savedValue) {
     return [];
@@ -520,7 +629,7 @@ function loadVocabularyWords() {
 }
 
 function saveVocabularyWords() {
-  localStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(vocabularyWords));
+  localStorage.setItem(getStorageKey("reading-quiz-vocabulary"), JSON.stringify(vocabularyWords));
 }
 
 function renderVocabularyLibrary() {

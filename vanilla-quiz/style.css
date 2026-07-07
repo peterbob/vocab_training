@@ -60,6 +60,31 @@ h2 {
   margin-bottom: 20px;
 }
 
+.top-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.language-select {
+  display: grid;
+  gap: 6px;
+  min-width: 112px;
+  margin: 0;
+  font-weight: 700;
+}
+
+.language-select select {
+  min-height: 38px;
+  border: 1px solid #b9c3d1;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #ffffff;
+  color: #202633;
+  font: inherit;
+}
+
 label {
   display: block;
   margin-bottom: 8px;
@@ -444,6 +469,10 @@ button.secondary:hover:not(:disabled) {
 @media (max-width: 820px) {
   .app {
     grid-template-columns: 1fr;
+  }
+
+  .top-bar {
+    flex-direction: column;
   }
 
   .answer-row {
