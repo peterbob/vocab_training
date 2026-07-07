@@ -29,7 +29,7 @@ GitHub Pages 设置方式：
 1. 打开仓库 `Settings`
 2. 进入 `Pages`
 3. `Build and deployment` 选择 `Deploy from a branch`
-4. Branch 选择 `main`，目录选择 `/docs`
+4. Branch 选择 `main`，目录选择 `/root`
 5. 保存后等待 GitHub 生成访问链接
 
 ### 本地使用
@@ -37,7 +37,7 @@ GitHub Pages 设置方式：
 直接用浏览器打开：
 
 ```text
-vanilla-quiz/index.html
+index.html
 ```
 
 不需要后端，不需要安装依赖。
@@ -56,12 +56,7 @@ vanilla-quiz/index.html
 ```text
 vocab_training/
 ├── README.md
-├── docs/
-│   ├── index.html
-│   ├── script.js
-│   └── style.css
-└── vanilla-quiz/
-    ├── index.html
-    ├── script.js
-    └── style.css
+├── index.html
+├── script.js
+└── style.css
 ```
